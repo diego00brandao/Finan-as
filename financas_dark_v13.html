@@ -296,6 +296,22 @@ body.hide-values #chart{filter:blur(9px);transition:filter .18s;}
 .add-row .in{flex:1;}
 .add-row .in.num{flex:0 0 100px;}
 
+/* ══ RESERVA (Finanças) ══════════════════════════════════════════════════ */
+.rv-head{display:grid;grid-template-columns:1.3fr auto auto auto auto;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line);}
+.rv-head span{font-size:.63rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--dim-2);}
+.rv-row{display:grid;grid-template-columns:1.3fr auto auto auto auto;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);transition:background .1s;}
+.rv-row:last-child{border-bottom:none;}
+.rv-row:hover{background:var(--panel-2);}
+@media(max-width:639px){
+  .rv-head{display:none;}
+  .rv-row{grid-template-columns:1fr auto auto;grid-template-areas:"name name del" "val meses total";row-gap:6px;}
+  .rv-row .led-name{grid-area:name;}
+  .rv-row .rv-del{grid-area:del;}
+  .rv-row .rv-val{grid-area:val;}
+  .rv-row .rv-meses{grid-area:meses;}
+  .rv-row .rv-total{grid-area:total;}
+}
+
 /* ══ INTER / TIMELINE ════════════════════════════════════════════════════ */
 .bill{
   display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;
@@ -314,7 +330,7 @@ body.hide-values #chart{filter:blur(9px);transition:filter .18s;}
 .bar-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1);}
 
 /* ══ SESSÕES ═════════════════════════════════════════════════════════════ */
-.dots{display:flex;gap:7px;}
+.dots{display:flex;gap:7px;flex-wrap:wrap;}
 .dot{
   width:34px;height:34px;border-radius:10px;border:1.5px solid var(--line-2);
   display:grid;place-items:center;font-family:var(--mono);font-size:.72rem;font-weight:700;
@@ -594,8 +610,25 @@ body.hide-values #chart{filter:blur(9px);transition:filter .18s;}
 
       <!-- ═══════════ SESSÕES ═══════════ -->
       <section id="tab-sessoes" class="tab">
-        <div class="section-head"><div class="eyebrow">Sessões e pagamentos</div></div>
+        <div class="section-head">
+          <div class="eyebrow">Sessões e pagamentos</div>
+          <button class="btn sm primary" onclick="openSessaoDlg()">Novo item</button>
+        </div>
         <div id="sessoes" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </section>
+
+      <!-- ═══════════ FINANÇAS (estimativa de reserva) ═══════════ -->
+      <section id="tab-financas" class="tab">
+        <div class="section-head">
+          <div class="eyebrow">Estimativa de reserva</div>
+          <button class="btn sm primary" onclick="openReservaDlg()">Novo item</button>
+        </div>
+        <div class="hint" style="margin-bottom:14px;">Cadastre um gasto recorrente e por quantos meses quer cobrir — o app calcula quanto guardar, item a item e no total.</div>
+
+        <div class="kpis" id="reservas-kpis"></div>
+
+        <div class="section-head"><div class="eyebrow">Itens cadastrados</div></div>
+        <div class="card"><div id="reservas-list"></div></div>
       </section>
     </div>
   </main>
@@ -740,24 +773,47 @@ body.hide-values #chart{filter:blur(9px);transition:filter .18s;}
   <div class="dlg-acts"><button class="btn ghost" onclick="closeDlg('dlg-divida')">Cancelar</button><button class="btn primary" onclick="addDivida()">Criar dívida</button></div>
 </div></div>
 
+<div class="ov" id="dlg-reserva"><div class="dlg" role="dialog" aria-modal="true">
+  <h3>Novo item de reserva</h3>
+  <div class="dlg-sub">Informe o valor mensal e por quantos meses você quer ter guardado.</div>
+  <div class="form-grid">
+    <div class="field"><label for="rv-nome">Nome</label><input id="rv-nome" class="in" placeholder="Terapia"></div>
+    <div class="form-grid c2">
+      <div class="field"><label for="rv-valor">Valor mensal</label><input type="number" id="rv-valor" class="in num" step="0.01" min="0" placeholder="300" oninput="previewReserva()"></div>
+      <div class="field"><label for="rv-meses">Meses</label><input type="number" id="rv-meses" class="in num" min="1" placeholder="6" oninput="previewReserva()"></div>
+    </div>
+  </div>
+  <div id="rv-preview" class="hint" style="margin-top:12px;"></div>
+  <div class="dlg-acts"><button class="btn ghost" onclick="closeDlg('dlg-reserva')">Cancelar</button><button class="btn primary" onclick="addReserva()">Adicionar</button></div>
+</div></div>
+
+<div class="ov" id="dlg-sessao"><div class="dlg" role="dialog" aria-modal="true">
+  <h3>Novo item de sessões</h3>
+  <div class="dlg-sub">Cadastre quem você paga por sessão (terapia, aulas, etc.) e de quantas em quantas sessões o pagamento fecha.</div>
+  <div class="form-grid">
+    <div class="field"><label for="si-nome">Nome</label><input id="si-nome" class="in" placeholder="Ex.: Fisioterapia"></div>
+    <div class="field"><label for="si-spp">Sessões por pagamento</label><input type="number" id="si-spp" class="in num" min="1" placeholder="4"></div>
+  </div>
+  <div class="dlg-acts"><button class="btn ghost" onclick="closeDlg('dlg-sessao')">Cancelar</button><button class="btn primary" onclick="addSessionItem()">Adicionar</button></div>
+</div></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="module">
 // ══════════════════════════════════════════════════════════════════════════
-//  PAINEL FINANCEIRO — v15
+//  PAINEL FINANCEIRO — v16
 // ══════════════════════════════════════════════════════════════════════════
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
-const SESSION_TYPES=['crys','davi','musica'];
-const SPP=4;
 const INTER='Cartão Inter';
-const SESSION_NAMES={crys:'Crys',davi:'Davi',musica:'Lucas'};
-const SESSION_LABEL={crys:'Terapia · Crysthian',davi:'Terapia · Davi',musica:'Música · Lucas'};
-const SESSION_ITEM={crys:'sessões',davi:'sessões',musica:'aulas de música'};
+// Itens de sessões/pagamentos vinham fixos (Crys, Davi, Lucas). Agora são cadastráveis —
+// esta lista só serve de valor inicial para quem já usava o app antes dessa mudança.
+const DEFAULT_SESSION_ITEMS=[{id:'crys',name:'Terapia · Crysthian',spp:4},{id:'davi',name:'Terapia · Davi',spp:4},{id:'musica',name:'Música · Lucas',spp:4}];
 
-const K={data:'financas2026',sessions:'financas2026_sessions',planning:'financas2026_planning',
+const K={data:'financas2026',sessions:'financas2026_sessions',sessionItems:'financas2026_session_items',
+  planning:'financas2026_planning',reservas:'financas2026_reservas',
   parceladas:'financas2026_parceladas',inter:'inter_faturas',limits:'card_limits',avulsos:'card_avulsos'};
 const HIST='financas2026_planning_history';
 const MAXH=20;
@@ -768,6 +824,7 @@ const NAV=[
   {id:'cartoes', label:'Cartões', icon:'<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/>'},
   {id:'planos',  label:'Planos',  icon:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.6"/>'},
   {id:'sessoes', label:'Sessões', icon:'<path d="M20 8.6a5 5 0 0 0-8-3.3 5 5 0 0 0-8 3.3c0 5.7 8 10.6 8 10.6s8-4.9 8-10.6z"/>'},
+  {id:'financas', label:'Reserva', icon:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18"/><circle cx="12" cy="15" r="2.6"/>'},
 ];
 
 /* ── storage ── */
@@ -785,6 +842,7 @@ const fmtK=v=>Math.abs(v)>=1000?(v/1000).toFixed(1).replace('.',',')+'k':String(
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const $=id=>document.getElementById(id);
 const short=k=>{const[m,y]=String(k).split(' ');return (m||'').slice(0,3)+'/'+(y||'').slice(2);};
+const genId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const svg=(p,s=15)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const I={
   check:'<polyline points="4.5 12.5 9.5 17 19.5 6.5"/>',
@@ -818,7 +876,7 @@ const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.get
 const fmtDate=iso=>{const d=new Date(iso+'T12:00:00');return isNaN(d)?'—':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});};
 
 /* ── state ── */
-let data={},sessions={crys:[],davi:[],musica:[]},planning={metas:[],reserva:0,dividas:[]};
+let data={},sessions={},sessionItems=[],planning={metas:[],reserva:0,dividas:[]},reservas=[];
 let cur=null,tab='hoje',blurred=true;
 
 /* ── normalização ── */
@@ -831,9 +889,13 @@ const nMonth=m=>{const o=m&&typeof m==='object'?m:{};return{
 };};
 function nData(raw){const o={};if(raw&&typeof raw==='object'&&!Array.isArray(raw))
   Object.keys(raw).forEach(k=>{if(validKey(k))o[k]=nMonth(raw[k]);});return o;}
-function nSessions(raw){const o={};SESSION_TYPES.forEach(t=>{
-  o[t]=(Array.isArray(raw?.[t])?raw[t]:[]).map(s=>({date:typeof s?.date==='string'?s.date:''}))
+function nSessions(raw){const o={};if(raw&&typeof raw==='object'&&!Array.isArray(raw))
+  Object.keys(raw).forEach(t=>{o[t]=(Array.isArray(raw[t])?raw[t]:[]).map(s=>({date:typeof s?.date==='string'?s.date:''}))
     .filter(s=>s.date).sort((a,b)=>a.date.localeCompare(b.date));});return o;}
+function nSessionItem(i){return {id:String(i?.id??genId()),name:String(i?.name??'').trim()||'Sem nome',spp:Math.max(1,parseInt(i?.spp,10)||4)};}
+function nSessionItems(raw){return Array.isArray(raw)?raw.map(nSessionItem):[];}
+function nReserva(i){return {id:String(i?.id??genId()),name:String(i?.name??'').trim()||'Sem nome',value:r2(i?.value),months:Math.max(1,parseInt(i?.months,10)||1)};}
+function nReservas(raw){return Array.isArray(raw)?raw.map(nReserva):[];}
 function nPlanning(raw){const o=raw&&typeof raw==='object'?raw:{};return{
   reserva:r2(o.reserva),
   metas:(Array.isArray(o.metas)?o.metas:[]).map(m=>({name:String(m?.name??'Meta'),target:r2(m?.target),current:r2(m?.current),mensal:r2(m?.mensal)})),
@@ -849,8 +911,9 @@ const fb=initializeApp({apiKey:"AIzaSyCsm7rbJ_2iTkcrIw2NGQCioNmgotnniFo",authDom
   projectId:"financas-pessoal-84c7b",storageBucket:"financas-pessoal-84c7b.firebasestorage.app",
   messagingSenderId:"218456089546",appId:"1:218456089546:web:a1c3dfd299042eebc3a533"});
 const db=getFirestore(fb);
-const REF={data:doc(db,'financas','dados'),sessions:doc(db,'financas','sessoes'),planning:doc(db,'financas','planejamento')};
-const timers={};const localWrite={data:false,sessions:false,planning:false};
+const REF={data:doc(db,'financas','dados'),sessions:doc(db,'financas','sessoes'),sessionItems:doc(db,'financas','sessoesConfig'),
+  planning:doc(db,'financas','planejamento'),reservas:doc(db,'financas','reservas')};
+const timers={};const localWrite={data:false,sessions:false,sessionItems:false,planning:false,reservas:false};
 const debounce=(k,fn,ms=900)=>{clearTimeout(timers[k]);timers[k]=setTimeout(fn,ms);};
 
 function setSync(s){
@@ -866,7 +929,9 @@ async function push(ref,payload,flag){
 }
 function saveData(){invalidate();lsSet(K.data,data);setSync('saving');localWrite.data=true;debounce('d',()=>push(REF.data,data,'data'));}
 function saveSessions(){lsSet(K.sessions,sessions);setSync('saving');localWrite.sessions=true;debounce('s',()=>push(REF.sessions,sessions,'sessions'));}
+function saveSessionItems(){lsSet(K.sessionItems,sessionItems);setSync('saving');localWrite.sessionItems=true;debounce('si',()=>push(REF.sessionItems,sessionItems,'sessionItems'));}
 function savePlanning(){lsSet(K.planning,planning);setSync('saving');localWrite.planning=true;debounce('p',()=>push(REF.planning,planning,'planning'));}
+function saveReservas(){lsSet(K.reservas,reservas);setSync('saving');localWrite.reservas=true;debounce('rv',()=>push(REF.reservas,reservas,'reservas'));}
 
 /* ── cálculos ── */
 let carryCache=null;
@@ -909,7 +974,7 @@ function renderNav(){
   updateBadges();
 }
 function updateBadges(){
-  const n=SESSION_TYPES.filter(t=>{const l=sessions[t]?.length||0;return l>0&&l%SPP===0;}).length;
+  const n=sessionItems.filter(it=>{const l=sessions[it.id]?.length||0;return l>0&&l%it.spp===0;}).length;
   ['cnt-sessoes'].forEach(id=>{const e=$(id);if(e){e.textContent=n;e.style.display=n?'inline':'none';}});
   const d=$('dot-sessoes');if(d)d.style.display=n?'block':'none';
 }
@@ -931,6 +996,7 @@ function render(t){
   if(t==='cartoes'){renderLimits();renderParceladas();renderInter();fillSimMeses();simCompra();}
   if(t==='planos'){renderExtras();renderDist();renderMetas();renderDividas();renderHistory();}
   if(t==='sessoes'){renderSessoes();}
+  if(t==='financas'){renderFinancas();}
   applyBlur();
 }
 function refreshAll(){renderNav();render(tab);}
@@ -1020,9 +1086,9 @@ function renderAlerts(t){
   const atrasadas=getInter().filter(f=>f.status==='pendente'&&cmpKey(f.mes,nowKey())<0);
   if(atrasadas.length) add('alert',I.card,`${atrasadas.length} fatura(s) do Inter em aberto de meses que já passaram.`);
 
-  SESSION_TYPES.forEach(s=>{
-    const n=sessions[s]?.length||0;
-    if(n>0&&n%SPP===0) add('hold',I.clock,`${SESSION_NAMES[s]}: ${SPP} ${SESSION_ITEM[s]} concluídas — pagamento devido.`);
+  sessionItems.forEach(it=>{
+    const n=sessions[it.id]?.length||0;
+    if(n>0&&n%it.spp===0) add('hold',I.clock,`${esc(it.name)}: ${it.spp} sessões concluídas — pagamento devido.`);
   });
 
   if(t.pendente>0&&t.livre>=0&&out.length===0)
@@ -1136,6 +1202,16 @@ document.addEventListener('click',()=>document.querySelectorAll('.led-opts').for
 function inline(el,inp,commit){
   let done=false;
   const end=save=>{if(done)return;done=true;if(save)commit(inp.value);renderCycle(el.dataset.c);renderHoje();};
+  el.replaceWith(inp);inp.focus();inp.select?.();
+  inp.addEventListener('blur',()=>end(true));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();end(true);}
+    if(e.key==='Escape'){e.preventDefault();end(false);}});
+}
+/* edição inline genérica (usada por Sessões e Finanças/reserva) */
+function inline2(el,inp,commit,after){
+  let done=false;
+  const end=save=>{if(done)return;done=true;if(save)commit(inp.value);after&&after();};
   el.replaceWith(inp);inp.focus();inp.select?.();
   inp.addEventListener('blur',()=>end(true));
   inp.addEventListener('keydown',e=>{
@@ -1845,32 +1921,76 @@ function simAntecipa(i,val){
 }
 
 /* ══ SESSÕES ══ */
-function sessionMsg(t,l){
+function sessionMsg(name,spp){
   return `Olá! Tudo bem?
 
-Passando para informar que fiz o pagamento das próximas ${SESSION_ITEM[t]}.
+Passando para informar que fiz o pagamento das últimas ${spp} sessões${name?' de '+name:''}.
 
 Muito obrigado!
 Segue comprovante.`;
 }
+function openSessaoDlg(){$('si-nome').value='';$('si-spp').value='4';openDlg('dlg-sessao');}
+function addSessionItem(){
+  const n=$('si-nome'),s=$('si-spp');
+  const name=n.value.trim();
+  const spp=Math.max(1,parseInt(s.value,10)||4);
+  if(!name){toast('Dê um nome ao item.','err');n.focus();return;}
+  const id=genId();
+  sessionItems.push({id,name,spp});
+  sessions[id]=[];
+  closeDlg('dlg-sessao');
+  saveSessionItems();saveSessions();renderSessoes();updateBadges();
+  toast('Item adicionado.');
+}
+function toggleItemMenu(t){const e=$('item-menu-'+t);if(!e)return;e.style.display=e.style.display==='none'?'flex':'none';}
+function editItemName(id,el){
+  const it=sessionItems.find(s=>s.id===id);if(!it)return;
+  const inp=document.createElement('input');inp.className='led-edit';inp.value=it.name;
+  inline2(el,inp,v=>{const t=v.trim();if(t&&t!==it.name){it.name=t;saveSessionItems();}},()=>{renderSessoes();updateBadges();});
+}
+function setItemSpp(id,val){
+  const it=sessionItems.find(s=>s.id===id);if(!it)return;
+  const n=parseInt(val,10);
+  if(!Number.isFinite(n)||n<1){toast('Valor inválido.','err');renderSessoes();return;}
+  it.spp=n;saveSessionItems();renderSessoes();updateBadges();
+}
+function delSessionItem(id){
+  const it=sessionItems.find(s=>s.id===id);if(!it)return;
+  if(!confirm(`Excluir "${it.name}"? Todos os registros dele serão apagados.`))return;
+  sessionItems=sessionItems.filter(s=>s.id!==id);
+  delete sessions[id];
+  saveSessionItems();saveSessions();renderSessoes();updateBadges();
+}
 function renderSessoes(){
-  $('sessoes').innerHTML=SESSION_TYPES.map(t=>{
+  if(!sessionItems.length){$('sessoes').innerHTML='<div class="empty">Nenhum item cadastrado ainda. Clique em "Novo item" para adicionar.</div>';return;}
+  $('sessoes').innerHTML=sessionItems.map(item=>{
+    const t=item.id,spp=item.spp;
     const all=sessions[t]||[];
-    const n=all.length,ciclo=n%SPP,pagos=Math.floor(n/SPP),due=ciclo===0&&n>0;
+    const n=all.length,ciclo=n%spp,pagos=Math.floor(n/spp),due=ciclo===0&&n>0;
     return `<div class="card">
       <div class="card-head">
-        <span class="card-title">${SESSION_LABEL[t]}</span>
-        <span class="chip ${due?'chip-alert':'chip-signal'}">${due?'Pagar agora':`${ciclo}/${SPP}`}</span>
+        <span class="card-title" style="cursor:pointer" title="Clique para editar o nome" onclick="editItemName('${t}',this)">${esc(item.name)}</span>
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span class="chip ${due?'chip-alert':'chip-signal'}">${due?'Pagar agora':`${ciclo}/${spp}`}</span>
+          <button class="icon-btn" style="width:26px;height:26px" onclick="toggleItemMenu('${t}')" aria-label="Opções do item">${svg(I.dots,14)}</button>
+        </div>
+      </div>
+      <div id="item-menu-${t}" style="display:none;padding:10px 16px;border-bottom:1px solid var(--line);gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field" style="max-width:180px;">
+          <label class="eyebrow">Sessões por pagamento</label>
+          <input type="number" class="in num" min="1" value="${spp}" onchange="setItemSpp('${t}',this.value)">
+        </div>
+        <button class="btn sm danger" onclick="delSessionItem('${t}')">Excluir item</button>
       </div>
       <div class="card-body">
-        <div class="dots" style="margin-bottom:14px;">${Array.from({length:SPP},(_,i)=>
-          `<div class="dot ${due||i<ciclo?'on':''} ${i===SPP-1?'pay':''}">${i+1}</div>`).join('')}</div>
-        ${due?`<div class="msg">${esc(sessionMsg(t,all.slice(-SPP)))}</div>
+        <div class="dots" style="margin-bottom:14px;">${Array.from({length:spp},(_,i)=>
+          `<div class="dot ${due||i<ciclo?'on':''} ${i===spp-1?'pay':''}">${i+1}</div>`).join('')}</div>
+        ${due?`<div class="msg">${esc(sessionMsg(item.name,spp))}</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
             <button class="btn sm" onclick="copyMsg('${t}')">Copiar mensagem</button>
             <button class="btn sm primary" onclick="confirmPay('${t}')">Confirmar pagamento</button>
           </div>`
-        :`<div class="hint" style="margin-bottom:14px;">${pagos} ${pagos===1?'pagamento feito':'pagamentos feitos'} · faltam ${SPP-ciclo} para fechar o próximo.</div>`}
+        :`<div class="hint" style="margin-bottom:14px;">${pagos} ${pagos===1?'pagamento feito':'pagamentos feitos'} · faltam ${spp-ciclo} para fechar o próximo.</div>`}
         <div style="display:flex;gap:8px;">
           <input type="date" class="in" id="dt-${t}" value="${todayISO()}" style="flex:1">
           <button class="btn primary" onclick="addSession('${t}')">Registrar</button>
@@ -1878,7 +1998,7 @@ function renderSessoes(){
         <div class="log">${n?all.map((s,i)=>({s,i})).reverse().map(({s,i})=>`
           <div class="log-row">
             <span class="log-date">${fmtDate(s.date)}</span>
-            <span class="hint">${(i+1)%SPP===0?'fecha ciclo':'concluída'}</span>
+            <span class="hint">${(i+1)%spp===0?'fecha ciclo':'concluída'}</span>
             <span class="log-n">#${i+1}</span>
             <button class="x-btn" onclick="delSession('${t}',${i})" aria-label="Excluir">✕</button>
           </div>`).join(''):'<div class="empty-inline">Nenhum registro ainda.</div>'}</div>
@@ -1899,7 +2019,8 @@ function delSession(t,i){
   sessions[t].splice(i,1);saveSessions();renderSessoes();updateBadges();
 }
 async function copyMsg(t){
-  const msg=sessionMsg(t,(sessions[t]||[]).slice(-SPP));
+  const it=sessionItems.find(s=>s.id===t);if(!it)return;
+  const msg=sessionMsg(it.name,it.spp);
   try{await navigator.clipboard.writeText(msg);toast('Mensagem copiada.');}
   catch{
     const ta=document.createElement('textarea');ta.value=msg;ta.style.position='fixed';ta.style.opacity='0';
@@ -1909,12 +2030,76 @@ async function copyMsg(t){
   }
 }
 function confirmPay(t){
+  const it=sessionItems.find(s=>s.id===t);if(!it)return;
   const all=sessions[t]||[];
-  if(all.length<SPP||all.length%SPP!==0)return;
-  if(!confirm(`Confirmar o pagamento de ${SESSION_NAMES[t]} e reiniciar o ciclo?\nAs ${SPP} últimas ${SESSION_ITEM[t]} saem do histórico.`))return;
-  sessions[t]=all.slice(0,-SPP);
+  if(all.length<it.spp||all.length%it.spp!==0)return;
+  if(!confirm(`Confirmar o pagamento de ${it.name} e reiniciar o ciclo?\nAs ${it.spp} últimas sessões saem do histórico.`))return;
+  sessions[t]=all.slice(0,-it.spp);
   saveSessions();renderSessoes();updateBadges();
-  toast(`Pagamento de ${SESSION_NAMES[t]} confirmado.`);
+  toast(`Pagamento de ${it.name} confirmado.`);
+}
+
+/* ══ FINANÇAS — ESTIMATIVA DE RESERVA ══ */
+function openReservaDlg(){$('rv-nome').value='';$('rv-valor').value='';$('rv-meses').value='';$('rv-preview').innerHTML='';openDlg('dlg-reserva');}
+function previewReserva(){
+  const v=parseFloat($('rv-valor').value),m=parseInt($('rv-meses').value,10);
+  const el=$('rv-preview');
+  el.innerHTML=(Number.isFinite(v)&&v>0&&Number.isFinite(m)&&m>0)
+    ? `Guardar <b class="n n-signal">${fmt(v)}</b> por mês durante <b>${m}</b> ${m===1?'mês':'meses'} = <b class="n n-signal">${fmt(r2(v*m))}</b> de reserva.`
+    : '';
+}
+function addReserva(){
+  const n=$('rv-nome'),v=$('rv-valor'),m=$('rv-meses');
+  const name=n.value.trim(),val=parseFloat(v.value),mes=parseInt(m.value,10);
+  if(!name){toast('Dê um nome ao item.','err');n.focus();return;}
+  if(!Number.isFinite(val)||val<=0){toast('Informe um valor válido.','err');v.focus();return;}
+  if(!Number.isFinite(mes)||mes<=0){toast('Informe quantos meses.','err');m.focus();return;}
+  reservas.push({id:genId(),name,value:r2(val),months:mes});
+  closeDlg('dlg-reserva');
+  saveReservas();renderFinancas();
+  toast('Item adicionado.');
+}
+function editReservaName(id,el){
+  const it=reservas.find(r=>r.id===id);if(!it)return;
+  const inp=document.createElement('input');inp.className='led-edit';inp.value=it.name;
+  inline2(el,inp,v=>{const t=v.trim();if(t&&t!==it.name){it.name=t;saveReservas();}},renderFinancas);
+}
+function editReservaValue(id,el){
+  const it=reservas.find(r=>r.id===id);if(!it)return;
+  const inp=document.createElement('input');inp.className='led-edit num';inp.type='number';inp.step='0.01';inp.min='0';inp.value=it.value;
+  inline2(el,inp,v=>{const n=parseFloat(v);if(Number.isFinite(n)&&n>0){it.value=r2(n);saveReservas();}},renderFinancas);
+}
+function editReservaMonths(id,el){
+  const it=reservas.find(r=>r.id===id);if(!it)return;
+  const inp=document.createElement('input');inp.className='led-edit num';inp.type='number';inp.min='1';inp.value=it.months;
+  inline2(el,inp,v=>{const n=parseInt(v,10);if(Number.isFinite(n)&&n>0){it.months=n;saveReservas();}},renderFinancas);
+}
+function delReserva(id){
+  const i=reservas.findIndex(r=>r.id===id);if(i<0)return;
+  if(!confirm(`Excluir "${reservas[i].name}"?`))return;
+  reservas.splice(i,1);saveReservas();renderFinancas();
+}
+function renderFinancas(){
+  const totalMensal=r2(reservas.reduce((s,r)=>s+num(r.value),0));
+  const totalReserva=r2(reservas.reduce((s,r)=>s+num(r.value)*r.months,0));
+  $('reservas-list').innerHTML=reservas.length
+    ? `<div class="rv-head"><span>Nome</span><span>Valor/mês</span><span>Meses</span><span>Reserva</span><span></span></div>`
+      +reservas.map(it=>{
+        const total=r2(num(it.value)*it.months);
+        return `<div class="rv-row">
+          <span class="led-name" onclick="editReservaName('${it.id}',this)">${esc(it.name)}</span>
+          <span class="led-val rv-val" onclick="editReservaValue('${it.id}',this)">${fmt(it.value)}</span>
+          <span class="led-val rv-meses" onclick="editReservaMonths('${it.id}',this)">${it.months}x</span>
+          <b class="n n-signal rv-total" style="white-space:nowrap;">${fmt(total)}</b>
+          <button class="x-btn rv-del" onclick="delReserva('${it.id}')" aria-label="Excluir">✕</button>
+        </div>`;}).join('')
+    : '<div class="empty">Nenhum item cadastrado ainda. Clique em "Novo item" para adicionar.</div>';
+
+  $('reservas-kpis').innerHTML=[
+    ['Itens',String(reservas.length),''],
+    ['Comprometido / mês',fmt(totalMensal),'n'],
+    ['Reserva total necessária',fmt(totalReserva),'n n-signal'],
+  ].map(([l,v,c])=>`<div class="kpi"><div class="kpi-l">${l}</div><div class="kpi-v ${c}">${v}</div></div>`).join('');
 }
 
 /* ══ GRÁFICO ══ */
@@ -2067,7 +2252,7 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.
 /* ══ IMPORT / EXPORT ══ */
 function exportData(){
   try{
-    const payload={version:15,exportedAt:new Date().toISOString(),finances:data,sessions,planning,
+    const payload={version:16,exportedAt:new Date().toISOString(),finances:data,sessions,sessionItems,planning,reservas,
       inter:getInter(),parceladas:getParceladas(),cardLimits:getLimits(),cardAvulsos:getAvulsos()};
     const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download=`financas_${todayISO()}.json`;
@@ -2091,12 +2276,14 @@ function importData(e){
     if(!confirm('Importar este backup? Os dados atuais são substituídos.'))return;
 
     data=novo;sessions=nSessions(imp.sessions);planning=nPlanning(imp.planning);
+    sessionItems=Array.isArray(imp.sessionItems)?nSessionItems(imp.sessionItems):sessionItems;
+    reservas=Array.isArray(imp.reservas)?nReservas(imp.reservas):reservas;
     if(Array.isArray(imp.inter))lsSet(K.inter,imp.inter);
     if(Array.isArray(imp.parceladas))lsSet(K.parceladas,imp.parceladas);
     if(imp.cardLimits&&typeof imp.cardLimits==='object')lsSet(K.limits,imp.cardLimits);
     if(imp.cardAvulsos&&typeof imp.cardAvulsos==='object')lsSet(K.avulsos,imp.cardAvulsos);
     invalidate();
-    lsSet(K.data,data);lsSet(K.sessions,sessions);lsSet(K.planning,planning);
+    lsSet(K.data,data);lsSet(K.sessions,sessions);lsSet(K.sessionItems,sessionItems);lsSet(K.planning,planning);lsSet(K.reservas,reservas);
     ssSet(HIST,[]);
 
     const ks=keys();
@@ -2105,12 +2292,14 @@ function importData(e){
     toast('Backup importado.');
 
     setSync('saving');
-    localWrite.data=localWrite.sessions=localWrite.planning=true;
+    localWrite.data=localWrite.sessions=localWrite.sessionItems=localWrite.planning=localWrite.reservas=true;
     try{
-      await Promise.all([setDoc(REF.data,{payload:cloneOf(data)}),setDoc(REF.sessions,{payload:cloneOf(sessions)}),setDoc(REF.planning,{payload:cloneOf(planning)})]);
+      await Promise.all([setDoc(REF.data,{payload:cloneOf(data)}),setDoc(REF.sessions,{payload:cloneOf(sessions)}),
+        setDoc(REF.sessionItems,{payload:cloneOf(sessionItems)}),setDoc(REF.planning,{payload:cloneOf(planning)}),
+        setDoc(REF.reservas,{payload:cloneOf(reservas)})]);
       setSync('saved');
     }catch(err){console.error(err);setSync('offline');toast('Salvo no aparelho. A nuvem está fora do ar.','err');}
-    finally{setTimeout(()=>{localWrite.data=localWrite.sessions=localWrite.planning=false;},1000);}
+    finally{setTimeout(()=>{localWrite.data=localWrite.sessions=localWrite.sessionItems=localWrite.planning=localWrite.reservas=false;},1000);}
   };
   rd.readAsText(file);
 }
@@ -2134,6 +2323,14 @@ function watch(){
     if(tab==='sessoes')renderSessoes();
     updateBadges();setSync('synced');
   },e=>console.warn(e));
+  onSnapshot(REF.sessionItems,s=>{
+    if(!s.exists()||localWrite.sessionItems)return;
+    const inc=nSessionItems(s.data().payload);
+    if(JSON.stringify(inc)===JSON.stringify(sessionItems))return;
+    sessionItems=inc;lsSet(K.sessionItems,sessionItems);
+    if(tab==='sessoes')renderSessoes();
+    updateBadges();setSync('synced');
+  },e=>console.warn(e));
   onSnapshot(REF.planning,s=>{
     if(!s.exists()||localWrite.planning)return;
     const inc=nPlanning(s.data().payload);
@@ -2141,19 +2338,31 @@ function watch(){
     planning=inc;lsSet(K.planning,planning);
     render(tab);setSync('synced');
   },e=>console.warn(e));
+  onSnapshot(REF.reservas,s=>{
+    if(!s.exists()||localWrite.reservas)return;
+    const inc=nReservas(s.data().payload);
+    if(JSON.stringify(inc)===JSON.stringify(reservas))return;
+    reservas=inc;lsSet(K.reservas,reservas);
+    if(tab==='financas')renderFinancas();
+    setSync('synced');
+  },e=>console.warn(e));
 }
 
 async function init(){
   setSync('saving');
   data=nData(lsGet(K.data,{}));
   sessions=nSessions(lsGet(K.sessions,{}));
+  sessionItems=nSessionItems(lsGet(K.sessionItems,DEFAULT_SESSION_ITEMS));
   planning=nPlanning(lsGet(K.planning,{}));
+  reservas=nReservas(lsGet(K.reservas,[]));
   try{
-    const [a,b,c]=await Promise.all([getDoc(REF.data),getDoc(REF.sessions),getDoc(REF.planning)]);
+    const [a,b,c,dSI,eRv]=await Promise.all([getDoc(REF.data),getDoc(REF.sessions),getDoc(REF.planning),getDoc(REF.sessionItems),getDoc(REF.reservas)]);
     if(a.exists())data=nData(a.data().payload);
     if(b.exists())sessions=nSessions(b.data().payload);
     if(c.exists())planning=nPlanning(c.data().payload);
-    lsSet(K.data,data);lsSet(K.sessions,sessions);lsSet(K.planning,planning);
+    if(dSI.exists())sessionItems=nSessionItems(dSI.data().payload);
+    if(eRv.exists())reservas=nReservas(eRv.data().payload);
+    lsSet(K.data,data);lsSet(K.sessions,sessions);lsSet(K.sessionItems,sessionItems);lsSet(K.planning,planning);lsSet(K.reservas,reservas);
     setSync('saved');
   }catch(e){console.warn('Offline — usando dados locais.',e);setSync('offline');}
   invalidate();
@@ -2175,6 +2384,8 @@ Object.assign(window,{
   addExtra,delExtra,setDist,distLeft,applyDist,clearDist,
   addMeta,delMeta,setMeta,addDivida,delDivida,setPagas,setTaxa,simAntecipa,
   addSession,delSession,copyMsg,confirmPay,
+  openSessaoDlg,addSessionItem,delSessionItem,editItemName,setItemSpp,toggleItemMenu,
+  openReservaDlg,previewReserva,addReserva,delReserva,editReservaName,editReservaValue,editReservaMonths,
   setChartFilter,simCompra,undoLast,undoAll,
 });
 window.addEventListener('resize',()=>{if(tab==='hoje')renderChart();});
