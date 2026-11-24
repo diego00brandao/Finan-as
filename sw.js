@@ -2,7 +2,7 @@
    Página e arquivos do app: tenta a rede primeiro (para pegar atualizações) e usa o cache sem internet.
    Fontes e biblioteca do Firebase: usa o cache e atualiza em segundo plano.
    A sincronização com o Firestore nunca passa pelo cache. */
-const CACHE='financas-v24';
+const CACHE='financas-v25';
 const APP=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png'];
 const LIBS=['fonts.googleapis.com','fonts.gstatic.com','www.gstatic.com'];
 
