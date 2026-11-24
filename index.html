@@ -382,7 +382,7 @@ nav .badge{position:absolute;top:2px;right:8px;width:9px;height:9px;border-radiu
    Arquivo único. Os dados ficam no aparelho (localStorage) e sincronizam
    com o Firestore quando há conexão. O app abre e funciona sem internet.
 ══════════════════════════════════════════════════════════════════════════ */
-const VERSION=26;
+const VERSION=27;
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
 const REC={d1:'rec01',d2:'rec15'};
@@ -916,24 +916,13 @@ V.inicio=()=>{
   const nome=cur.split(' ')[0].toLowerCase();
   const [int,dec]=Math.abs(t.livre).toFixed(2).split('.');
   const av=avisos(t);
-  const abertas=['d1','d2'].flatMap(c=>m[c].map((it,i)=>({c,i,it})).filter(x=>!x.it.paid)
-    .sort((a,b)=>a.it.name.localeCompare(b.it.name,'pt')));
-  const total=m.d1.length+m.d2.length;
   let h=monthBar();
   h+=`<section class="hero">
     <p class="hero-l">${over?`Está faltando em ${nome}`:`Livre em ${nome}`}</p>
     <p class="hero-v n ${over?'bad':''}"><small>${over?'−':''}R$</small><b>${(+int).toLocaleString('pt-BR')}</b><small>,${dec}</small></p>
     <p class="hero-s"><span class="chip ${z.k}">${z.t}</span>${t.pct===999?'Nenhuma receita lançada neste mês':t.receitaTotal?`${t.pct}% da renda comprometida`:'Lance a receita e as despesas na aba Mês'}</p>
   </section>`;
-  h+=regua(m);
   if(av.length)h+=`<div class="sec"><div class="sec-h"><h2>Pede atenção</h2></div><div class="sf">${av.join('')}</div></div>`;
-  h+=`<div class="sec"><div class="sec-h"><h2>A pagar ${abertas.length?`<span class="chip war n">${fmt(t.pendente)}</span>`:''}</h2>
-      <button class="btn txt sm" data-a="go" data-t="mes">Ver o mês</button></div><div class="sf">`;
-  if(!total)h+=`<div class="empty"><b>Nenhuma despesa em ${nome}</b>Adicione as contas do mês para acompanhar o que falta pagar.<br><button class="btn pri sm" data-a="go" data-t="mes" style="margin-top:12px">Lançar despesas</button></div>`;
-  else if(!abertas.length)h+=`<div class="empty"><b>Tudo pago</b>As ${total} despesas de ${nome} estão quitadas.</div>`;
-  else h+=abertas.slice(0,6).map(x=>expRow(x.c,x.i,x.it,CYCLES[x.c])).join('')
-    +(abertas.length>6?`<button class="lnk" data-a="go" data-t="mes" style="padding:0 15px;color:var(--tx3);font-size:14px">Mais ${abertas.length-6} em aberto</button>`:'');
-  h+=`</div></div>`;
   h+=chartHTML();
   return h;
 };
