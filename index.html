@@ -382,7 +382,7 @@ nav .badge{position:absolute;top:2px;right:8px;width:9px;height:9px;border-radiu
    Arquivo único. Os dados ficam no aparelho (localStorage) e sincronizam
    com o Firestore quando há conexão. O app abre e funciona sem internet.
 ══════════════════════════════════════════════════════════════════════════ */
-const VERSION=25;
+const VERSION=26;
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
 const REC={d1:'rec01',d2:'rec15'};
@@ -1243,19 +1243,16 @@ V.cartoes=()=>{
     <p class="hint" style="margin:8px 4px 0">O valor em aberto soma as despesas não pagas, do mês atual em diante, que levam o nome do cartão (por exemplo "Fatura ${esc(cards.list[0])}").</p>`
   :`<div class="sf"><div class="empty"><b>Nenhum cartão cadastrado</b>Cadastre com o mesmo nome que você usa nas despesas. É por ele que o app soma o que já foi gasto.</div></div>`;
   h+=`</div>`;
-  h+=`<div class="sec"><div class="sec-h"><h2>Compras parceladas</h2><button class="btn pri sm" data-a="parcOpen">Nova compra</button></div><div class="sf">`;
-  h+=ativas.length?ativas.map(p=>{
-    const pg=pagas(p),faltam=parcSemMes(p);
-    return `<button class="row-m" data-a="parcOpen" data-id="${esc(p.id)}" style="display:block;width:100%;padding:13px 15px;border-bottom:1px solid var(--line);border-radius:0">
-      <span style="display:flex;align-items:center;gap:10px"><span class="row-n">${esc(p.desc)}<small>${esc(p.cartao)}, ${CYCLES[p.ciclo]}. ${p.n}× de <span class="n">${fmt(p.parcela)}</span></small></span>
-        <span class="chip ${pg>0?'info':''}">${pg} de ${p.n} pagas</span></span>
-      <span class="bar" style="display:block;margin:10px 0 8px"><i style="width:${pg/p.n*100}%"></i></span>
-      <span class="tags">${p.meses.map(m=>{
-        const ok=(data[m]?.[p.ciclo]||[]).some(d=>same(d.name,p.cartao)&&d.paid);
-        return `<span class="${ok?'ok':''}">${short(m)}</span>`;}).join('')}${faltam>0?`<span class="war">+${faltam} sem mês</span>`:''}</span>
-    </button>`;}).join('')
-  :`<div class="empty"><b>Nenhuma compra parcelada em aberto</b>Ao cadastrar uma compra, a parcela entra sozinha na fatura do cartão em cada mês.</div>`;
-  h+=`</div></div>`;
+  h+=`<div class="sec"><div class="sec-h"><h2>Compras parceladas</h2><button class="btn pri sm" data-a="parcOpen">Nova compra</button></div>`;
+  if(ativas.length){
+    const falta=r2(ativas.reduce((s,p)=>s+Math.max(p.n-pagas(p),0)*p.parcela,0));
+    const mes=r2(ativas.reduce((s,p)=>s+p.parcela,0));
+    h+=`<button class="sf tot" data-a="parcList" style="display:block;width:100%;text-align:left">
+      <span style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Compras em aberto</span><span class="chip info">Ver todas ${svg(IC.right,13)}</span></span>
+      <b>${ativas.length}</b>
+      <span class="two"><span style="display:block"><span>Falta pagar</span><b class="n">${fmt(falta)}</b></span><span style="display:block"><span>Parcelas por mês</span><b class="n">${fmt(mes)}</b></span></span></button>`;
+  }else h+=`<div class="sf"><div class="empty"><b>Nenhuma compra parcelada em aberto</b>Ao cadastrar uma compra, a parcela entra sozinha na fatura do cartão em cada mês.</div></div>`;
+  h+=`</div>`;
   h+=`<div class="sec"><div class="sec-h"><h2>Simular uma compra</h2></div><div class="sf sf-p">
     <div class="fg c3">
       ${F('Valor total','sim-v','','inputmode="decimal" placeholder="0,00" data-i="sim" data-keep','num money')}
@@ -1275,6 +1272,22 @@ A.cardMonths=d=>{
   applyBlur();
 };
 A.cardGo=d=>{closeAll();if(!data[d.k])return;cur=d.k;chartSel=null;go('mes');};
+function parcRowHTML(p){
+  const pg=pagas(p),rest=Math.max(p.n-pg,0),faltam=parcSemMes(p);
+  return `<button class="row-m" data-a="parcOpen" data-id="${esc(p.id)}" style="display:block;width:100%;padding:13px 15px;border-bottom:1px solid var(--line);border-radius:0">
+    <span style="display:flex;align-items:center;gap:10px"><span class="row-n">${esc(p.desc)}<small>${esc(p.cartao)}, ${p.n}× de <span class="n">${fmt(p.parcela)}</span></small></span>
+      <span class="chip ${pg>0?'info':''}">${pg} de ${p.n}</span></span>
+    <span class="bar" style="display:block;margin:10px 0 7px"><i style="width:${pg/p.n*100}%"></i></span>
+    <span class="hint" style="display:block">Falta <span class="n">${fmt(r2(rest*p.parcela))}</span>, termina em ${short(shift(p.ini,p.n-1))}${faltam?` · <span class="war">${pl(faltam,'mês ainda não criado','meses ainda não criados')}</span>`:''}</span>
+  </button>`;
+}
+A.parcList=()=>{
+  const ativas=cards.parceladas.filter(p=>pagas(p)<p.n).sort((a,b)=>cmpKey(shift(a.ini,a.n-1),shift(b.ini,b.n-1))||a.desc.localeCompare(b.desc,'pt'));
+  sheet(head('Compras parceladas',`${pl(ativas.length,'compra em aberto','compras em aberto')}, das que terminam antes para as que terminam depois.`)
+    +`<div class="sh-b sf" style="max-height:60dvh;overflow-y:auto">${ativas.map(parcRowHTML).join('')||'<div class="empty">Nenhuma compra em aberto.</div>'}</div>
+    <div class="sh-acts"><button class="btn pri" data-a="parcOpen">Nova compra</button><button class="btn" data-a="close">Fechar</button></div>`);
+  applyBlur();
+};
 A.parcApply=()=>{
   let n=0;
   cards.parceladas.forEach(p=>{const antes=Object.keys(p.applied||{}).length;syncParcela(p,desiredOf(p));p.meses=mesesOf(p);n+=Math.max(Object.keys(p.applied).length-antes,0);});
