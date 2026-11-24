@@ -382,7 +382,7 @@ nav .badge{position:absolute;top:2px;right:8px;width:9px;height:9px;border-radiu
    Arquivo único. Os dados ficam no aparelho (localStorage) e sincronizam
    com o Firestore quando há conexão. O app abre e funciona sem internet.
 ══════════════════════════════════════════════════════════════════════════ */
-const VERSION=24;
+const VERSION=25;
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
 const REC={d1:'rec01',d2:'rec15'};
@@ -1112,7 +1112,12 @@ A.temaToggle=()=>{tema=tema==='escuro'?'claro':'escuro';try{localStorage.setItem
 
 /* ══ CARTÕES ══ */
 const avulsoName=c=>`${c} (avulso)`;
-const pagas=p=>p.meses.filter(m=>(data[m]?.[p.ciclo]||[]).some(d=>same(d.name,p.cartao)&&d.paid)).length;
+/* Parcelas cujo mês é anterior ao atual e não está cadastrado (ex.: compra feita antes de usar o app)
+   contam como já pagas. Só os meses atuais ou futuros ainda não criados ficam "sem mês". */
+const parcMesesAll=p=>validKey(p.ini)?Array.from({length:p.n},(_,i)=>shift(p.ini,i)):[];
+const parcAntes=p=>parcMesesAll(p).filter(m=>!data[m]&&cmpKey(m,nowKey())<0).length;
+const parcSemMes=p=>parcMesesAll(p).filter(m=>!data[m]&&cmpKey(m,nowKey())>=0).length;
+const pagas=p=>parcAntes(p)+p.meses.filter(m=>(data[m]?.[p.ciclo]||[]).some(d=>same(d.name,p.cartao)&&d.paid)).length;
 const normTxt=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const CARD_STOP=['cartao','card','credito','de','do','da','fatura'];
 /* Um lançamento pertence ao cartão quando o nome dele contém o nome do cartão
@@ -1134,7 +1139,7 @@ function cardUsageDetail(c){
     if(v>0){meses.push({k,v});total+=v;}
   });
   let semMes=0;
-  cards.parceladas.filter(p=>same(p.cartao,c)&&pagas(p)<p.n).forEach(p=>{semMes+=Math.max(p.n-p.meses.length,0)*p.parcela;});
+  cards.parceladas.filter(p=>same(p.cartao,c)&&pagas(p)<p.n).forEach(p=>{semMes+=parcSemMes(p)*p.parcela;});
   return {total:r2(total+semMes),meses,semMes:r2(semMes)};
 }
 const cardUsage=c=>cardUsageDetail(c).total;
@@ -1232,15 +1237,15 @@ V.cartoes=()=>{
         <div class="bar"><i style="width:${pct}%;background:var(--${k})"></i></div>
         <p class="hint" style="margin-top:8px">${disp>=0?`Livre para usar: <b class="n ok">${fmt(disp)}</b>`:`Passou do limite em <b class="n bad">${fmt(-disp)}</b>`}</p>`
       :`<p class="hint" style="margin-top:2px">em aberto. Informe o limite para acompanhar o quanto resta.</p>`}
-      ${det.meses.length||det.semMes?`<div class="tags" style="margin-top:10px">${det.meses.map(x=>`<span>${short(x.k)} <b class="n">${fmt(x.v)}</b></span>`).join('')}${det.semMes?`<span class="war">sem mês <b class="n">${fmt(det.semMes)}</b></span>`:''}</div>`:''}
-      <div class="tl-a"><button class="btn sm" data-a="cardOpen" data-card="${esc(c)}">${L>0?'Editar':'Informar limite'}</button></div>
+      <div class="tl-a">${det.meses.length||det.semMes?`<button class="btn sm" data-a="cardMonths" data-card="${esc(c)}">Ver por mês</button>`:''}
+        <button class="btn sm" data-a="cardOpen" data-card="${esc(c)}">${L>0?'Editar':'Informar limite'}</button></div>
     </div>`;}).join('')+`</div>
     <p class="hint" style="margin:8px 4px 0">O valor em aberto soma as despesas não pagas, do mês atual em diante, que levam o nome do cartão (por exemplo "Fatura ${esc(cards.list[0])}").</p>`
   :`<div class="sf"><div class="empty"><b>Nenhum cartão cadastrado</b>Cadastre com o mesmo nome que você usa nas despesas. É por ele que o app soma o que já foi gasto.</div></div>`;
   h+=`</div>`;
   h+=`<div class="sec"><div class="sec-h"><h2>Compras parceladas</h2><button class="btn pri sm" data-a="parcOpen">Nova compra</button></div><div class="sf">`;
   h+=ativas.length?ativas.map(p=>{
-    const pg=pagas(p),faltam=p.n-p.meses.length;
+    const pg=pagas(p),faltam=parcSemMes(p);
     return `<button class="row-m" data-a="parcOpen" data-id="${esc(p.id)}" style="display:block;width:100%;padding:13px 15px;border-bottom:1px solid var(--line);border-radius:0">
       <span style="display:flex;align-items:center;gap:10px"><span class="row-n">${esc(p.desc)}<small>${esc(p.cartao)}, ${CYCLES[p.ciclo]}. ${p.n}× de <span class="n">${fmt(p.parcela)}</span></small></span>
         <span class="chip ${pg>0?'info':''}">${pg} de ${p.n} pagas</span></span>
@@ -1260,6 +1265,16 @@ V.cartoes=()=>{
   return h;
 };
 AFTER.cartoes=()=>ON.sim();
+A.cardMonths=d=>{
+  const c=d.card,det=cardUsageDetail(c);
+  sheet(head(c,`Em aberto por mês: ${fmt(det.total)}`)+`<div class="sh-b sf" style="max-height:56dvh;overflow-y:auto">
+    ${det.meses.map(x=>`<div class="row flat"><button class="row-m" data-a="cardGo" data-k="${x.k}" style="padding-left:15px">
+      <span class="row-n">${longK(x.k)}</span><span class="n row-v">${fmt(x.v)}</span>${svg(IC.right,15)}</button></div>`).join('')}
+    ${det.semMes?`<div class="row flat"><div class="row-m" style="padding-left:15px"><span class="row-n war">Meses ainda não criados<small>entram na fatura quando você adicionar o mês</small></span><span class="n row-v war">${fmt(det.semMes)}</span></div></div>`:''}
+  </div><div class="sh-acts"><button class="btn full" data-a="close">Fechar</button></div>`);
+  applyBlur();
+};
+A.cardGo=d=>{closeAll();if(!data[d.k])return;cur=d.k;chartSel=null;go('mes');};
 A.parcApply=()=>{
   let n=0;
   cards.parceladas.forEach(p=>{const antes=Object.keys(p.applied||{}).length;syncParcela(p,desiredOf(p));p.meses=mesesOf(p);n+=Math.max(Object.keys(p.applied).length-antes,0);});
@@ -1326,7 +1341,7 @@ ON.parcPrev=()=>{
   const el=$('p-prev');if(!el)return;
   const t=pm(val('p-total'))||0,n=pint(val('p-n'))||0,ini=val('p-ini');
   if(!t||!n||!ini){el.innerHTML='';return;}
-  const alvo=mesesOf({ini,n}),faltam=n-alvo.length;
+  const alvo=mesesOf({ini,n}),faltam=parcSemMes({ini,n});
   el.innerHTML=`<div class="note">${n}× de <b class="n">${fmt(r2(t/n))}</b>${alvo.length?`, de ${short(alvo[0])} a ${short(shift(ini,n-1))}`:''}.
     ${faltam>0?`<br><span class="war">${pl(faltam,'mês ainda não existe','meses ainda não existem')}. As parcelas entram quando você criar ${faltam===1?'ele':'eles'}.</span>`:''}</div>`;
   applyBlur();
@@ -1357,7 +1372,7 @@ A.parcOk=async()=>{
   syncParcela(p,desiredOf(p));p.meses=mesesOf(p);
   if(!cards.list.some(c=>same(c,nome)))cards.list.push(nome);
   save('cards');save('data');closeAll();render();
-  const f=n-p.meses.length;
+  const f=parcSemMes(p);
   toast(`${desc}: ${p.meses.length}× de ${fmt(parcela)} no ${nome}.`+(f>0?` Faltam ${pl(f,'mês','meses')} para cadastrar.`:''));
 };
 A.parcDel=async()=>{
