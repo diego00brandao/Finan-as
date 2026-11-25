@@ -382,7 +382,7 @@ nav .badge{position:absolute;top:2px;right:8px;width:9px;height:9px;border-radiu
    Arquivo único. Os dados ficam no aparelho (localStorage) e sincronizam
    com o Firestore quando há conexão. O app abre e funciona sem internet.
 ══════════════════════════════════════════════════════════════════════════ */
-const VERSION=28;
+const VERSION=29;
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
 const REC={d1:'rec01',d2:'rec15'};
@@ -911,17 +911,9 @@ function chartHTML(){
 A.chartSel=d=>{chartSel=d.k;const x=$('ch-wrap')?.scrollLeft||0;render();if($('ch-wrap'))$('ch-wrap').scrollLeft=x;};
 A.chartFilter=d=>{chartFilter=d.f;render();};
 V.inicio=()=>{
-  const t=totals(cur),m=data[cur],z=zoneOf(t.pct),over=t.livre<0;
-  const nome=cur.split(' ')[0].toLowerCase();
-  const [int,dec]=Math.abs(t.livre).toFixed(2).split('.');
-  const av=avisos(t);
-  let h=monthBar();
-  h+=`<section class="hero">
-    <p class="hero-l">${over?`Está faltando em ${nome}`:`Livre em ${nome}`}</p>
-    <p class="hero-v n ${over?'bad':''}"><small>${over?'−':''}R$</small><b>${(+int).toLocaleString('pt-BR')}</b><small>,${dec}</small></p>
-    <p class="hero-s"><span class="chip ${z.k}">${z.t}</span>${t.pct===999?'Nenhuma receita lançada neste mês':t.receitaTotal?`${t.pct}% da renda comprometida`:'Lance a receita e as despesas na aba Mês'}</p>
-  </section>`;
-  if(av.length)h+=`<div class="sec"><div class="sec-h"><h2>Pede atenção</h2></div><div class="sf">${av.join('')}</div></div>`;
+  const t=totals(cur),nome=cur.split(' ')[0].toLowerCase(),av=avisos(t);
+  let h=`<div class="sec" style="margin-top:4px"><div class="sec-h"><h2>Pede atenção em ${nome}</h2></div><div class="sf">`
+    +(av.length?av.join(''):`<div class="av"><span class="ok">${svg(IC.ok,18)}</span><span>Nada pedindo atenção agora.</span></div>`)+`</div></div>`;
   h+=chartHTML();
   return h;
 };
