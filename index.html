@@ -382,7 +382,7 @@ nav .badge{position:absolute;top:2px;right:8px;width:9px;height:9px;border-radiu
    Arquivo único. Os dados ficam no aparelho (localStorage) e sincronizam
    com o Firestore quando há conexão. O app abre e funciona sem internet.
 ══════════════════════════════════════════════════════════════════════════ */
-const VERSION=27;
+const VERSION=28;
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CYCLES={d1:'Ciclo 01',d2:'Ciclo 15'};
 const REC={d1:'rec01',d2:'rec15'};
@@ -674,7 +674,7 @@ function totals(k){
     carry:r2(carry()[k]||0)};
 }
 const zoneOf=p=>p<=70?{t:'Com folga',k:'ok'}:p<=85?{t:'Atenção',k:'war'}:p<=100?{t:'No limite',k:'war'}:{t:'Estourou',k:'bad'};
-const pickCur=()=>{const ks=keys();return data[nowKey()]?nowKey():(ks[ks.length-1]||nowKey());};
+const pickCur=()=>{const ks=keys(),now=nowKey();if(data[now])return now;return ks.find(k=>cmpKey(k,now)>0)||ks[ks.length-1]||now;};
 const sesDue=it=>(sessions[it.id]?.length||0)>=it.spp;
 
 /* ══ INFRA DE TELA ══ */
@@ -788,7 +788,7 @@ A.months=()=>{
       return `<div class="row flat"><button class="row-m" data-a="month" data-k="${k}">
         <span class="row-n">${k.split(' ')[0]}${k===now?' <span class="chip ok">atual</span>':''}${k===cur?' <span class="chip">aberto</span>':''}</span>
         <span class="n row-v ${t.livre<0?'bad':''}" style="font-weight:600">${fmt(t.livre)}</span></button>
-        ${k===now?'<span style="width:40px"></span>':`<button class="ib" data-a="delMonth" data-k="${k}" aria-label="Excluir ${k}">${svg(IC.trash,17)}</button>`}</div>`;}).join('')).join('')}
+        <button class="ib" data-a="delMonth" data-k="${k}" aria-label="Excluir ${k}">${svg(IC.trash,17)}</button></div>`;}).join('')).join('')}
     </div><div class="sh-acts"><button class="btn pri" data-a="addMonth">Adicionar mês</button><button class="btn" data-a="close">Fechar</button></div>`);
 };
 A.addMonth=()=>{
@@ -832,8 +832,7 @@ A.addMonthOk=()=>{
 };
 A.delMonth=async d=>{
   const k=d.k;
-  if(k===nowKey()){toast('O mês atual não pode ser excluído.','err');return;}
-  if(!await ask({title:`Excluir ${longK(k)}?`,text:'Receitas, despesas e anotações desse mês são apagadas.',ok:'Excluir mês',danger:true}))return;
+  if(!await ask({title:`Excluir ${longK(k)}?`,text:(k===nowKey()?'É o mês atual. ':'')+'Receitas, despesas e anotações desse mês são apagadas.',ok:'Excluir mês',danger:true}))return;
   const bak=data[k];
   delete data[k];
   cards.parceladas.forEach(p=>{p.meses=mesesOf(p);});
